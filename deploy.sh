@@ -4,6 +4,12 @@
 #https://github.com/openshift/cluster-autoscaler-operator
 #https://github.com/kubernetes/autoscaler
 
+#get vpc id from instanceid metadata of ansible host
+INSTANCE_ID=$(curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/)
+VPC_ID=$(curl http://169.254.169.254/latest/meta-data/network/interfaces/macs/${INSTANCE_ID}vpc-id)
+
+
+
 #Create a new Ansible inventory file on your local host:
 cat <<EOF > temp_hosts
 [OSEv3:children]
@@ -13,8 +19,7 @@ etcd
 
 [OSEv3:vars]
 openshift_deployment_type=openshift-enterprise
-ansible_ssh_user=ec2-user
-openshift_clusterid=mycluster
+ansible_ssh_user=ansible
 ansible_become=yes
 
 [masters]
@@ -25,7 +30,7 @@ EOF
 #Create provisioning file, build-ami-provisioning-vars.yaml
 cat <<EOF > build-ami-provisioning-vars.yaml
 openshift_deployment_type: openshift-enterprise
-openshift_aws_clusterid: mycluster 
+openshift_aws_clusterid: ${OCP_STACK_NAME}
 openshift_aws_region: us-east-1 
 openshift_aws_create_vpc: false 
 openshift_aws_vpc_name: production 
@@ -251,7 +256,7 @@ aws_access_key_id = your-aws-access-key-id
 aws_secret_access_key = your-aws-secret-access-key
 EOF
 
-#Create the a secret that contains the AWS credentials
+#Create a secret that contains the AWS credentials
 oc create secret -n cluster-autoscaler generic autoscaler-credentials --from-file=creds
 
 #Create and grant cluster-reader role to the cluster-autoscaler service account previously created
